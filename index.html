@@ -414,9 +414,13 @@
 
           <div class="flex justify-between items-center pt-1">      
             <div class="pr-2 overflow-hidden">      
-              <p class="text-xs font-semibold truncate text-text-dark" id="mon-lien-parrain">https://afrinova.app/inscription?ref=072271</p>      
-              <p class="text-[10px] font-bold uppercase tracking-wider text-text-gray mt-0.5">LIEN DE PARRAINAGE OFFICIEL</p>      
+              <p class="text-xs font-semibold truncate text-text-dark" id="mon-lien-parrain">https://afrinova2027-stack.github.io/Revenu-/?ref=072271</p>      
+              <p class="text-[10px] font-bold uppercase tracking-wider text-text-gray mt-0.5">LIEN DE PARRAINAGE OFFICIEL</p>
+              <p class="text-[9px] text-emerald-600 font-semibold mt-1">Lien permanent : votre filleul peut à son tour le partager.</p>      
             </div>      
+            <button onclick="window.partagerLien()" class="bg-emerald-600 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow flex-shrink-0 active:scale-95 transition">
+              PARTAGER
+            </button>
             <button onclick="window.copierLien()" class="bg-brand-blue text-white text-xs font-extrabold px-5 py-2.5 rounded-xl shadow flex-shrink-0 active:scale-95 transition">      
               COPIER      
             </button>      
@@ -813,7 +817,38 @@
   </div>
 
   <!-- Scripts utilitaires -->
-  <script>      
+  <script>
+    // --- PARRAINAGE DYNAMIQUE : lien permanent ---
+    const PARRAINAGE_BASE_URL = "https://afrinova2027-stack.github.io/Revenu-/";
+    const PARAM_REF_PARRAINAGE = "ref";
+    let codeParrainURL = "";
+
+    function lireCodeParrainURL() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const ref = (params.get(PARAM_REF_PARRAINAGE) || "").trim().toUpperCase();
+        if (/^[A-Z0-9]{4,30}$/.test(ref)) {
+          codeParrainURL = ref;
+          try { sessionStorage.setItem("afrinova_ref_parrainage", ref); } catch (_) {}
+        } else {
+          try { codeParrainURL = (sessionStorage.getItem("afrinova_ref_parrainage") || "").trim().toUpperCase(); } catch (_) {}
+        }
+      } catch (_) {}
+      const champ = document.getElementById("signup-parrain");
+      if (champ && codeParrainURL && !champ.value) champ.value = codeParrainURL;
+      return codeParrainURL;
+    }
+
+    function construireLienParrainage(code) {
+      const c = String(code || "").trim().toUpperCase();
+      return c ? `${PARRAINAGE_BASE_URL}?ref=${encodeURIComponent(c)}` : PARRAINAGE_BASE_URL;
+    }
+
+    lireCodeParrainURL();
+    window.addEventListener("DOMContentLoaded", lireCodeParrainURL);
+    window.addEventListener("pageshow", lireCodeParrainURL);
+
+          
     window.togglePassword = function(inputId, iconElement) {      
       const input = document.getElementById(inputId);      
       const icon = iconElement.querySelector('i');      
@@ -1477,7 +1512,14 @@ window.ouvrirAnnonce = function() {
       throw new Error('Impossible de générer un code de parrainage unique. Réessayez.');
     }
 
-    initialiserLienParrainage();
+async function garantirCodeParrainage(userUid, data) {
+      if (data && data.codeParrain) return data.codeParrain;
+      const nouveauCode = await genererCodeParrainageUnique();
+      await updateDoc(doc(db, "users", userUid), { codeParrain: nouveauCode });
+      return nouveauCode;
+    }
+
+        initialiserLienParrainage();
 
     window.inscription = async function(e) {
       e.preventDefault();
@@ -1594,10 +1636,10 @@ window.ouvrirAnnonce = function() {
       document.getElementById('user-solde-profil').innerText = `${Math.floor(currentUserData.solde || 0).toLocaleString()} FC`;      
       document.getElementById('user-revenus-profil').innerText = `${Math.floor(currentUserData.revenus || 0).toLocaleString()} FC`;      
             
-      const code = currentUserData.codeParrain;
+      const code = currentUserData.codeParrain || "";
       if (code) {
         document.getElementById('mon-code-parrain').innerText = code;
-        const urlLien = `https://afrinova.app/inscription?ref=${encodeURIComponent(code)}`;
+        const urlLien = construireLienParrainage(code);
         document.getElementById('mon-lien-parrain').innerText = urlLien;
       }    
 
@@ -2131,4 +2173,19 @@ window.ouvrirAnnonce = function() {
     });
   </script>    
 </body>
-</html>
+</html>window.partagerLien = async function() {
+      const code = (currentUserData && currentUserData.codeParrain) ||
+                   document.getElementById("mon-code-parrain")?.innerText.trim() || "";
+      const lien = construireLienParrainage(code);
+      const texte = `Rejoins AfriNova avec mon lien de parrainage : ${lien}`;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "AfriNova", text: texte, url: lien });
+          return;
+        } catch (e) {}
+      }
+      await navigator.clipboard.writeText(lien);
+      window.showNotification("Lien personnel copié. Tu peux maintenant l'envoyer à tes amis.", "success");
+    };
+
+    
