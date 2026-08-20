@@ -2171,9 +2171,8 @@ async function garantirCodeParrainage(userUid, data) {
         window.showPage('inscription');      
       }      
     });
-  </script>    
-</body>
-</html>window.partagerLien = async function() {
+  
+    window.partagerLien = async function() {
       const code = (currentUserData && currentUserData.codeParrain) ||
                    document.getElementById("mon-code-parrain")?.innerText.trim() || "";
       const lien = construireLienParrainage(code);
@@ -2187,5 +2186,6 @@ async function garantirCodeParrainage(userUid, data) {
       await navigator.clipboard.writeText(lien);
       window.showNotification("Lien personnel copié. Tu peux maintenant l'envoyer à tes amis.", "success");
     };
-
-    
+</script>    
+</body>
+</html>
